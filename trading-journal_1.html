@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Trading Journal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  :root{
+    --bg-elevated:#12161f;
+    --bg-card:#171c26;
+    --border:#242b38;
+    --text-primary:#e9edf3;
+    --text-secondary:#8791a3;
+    --text-tertiary:#565f6f;
+    --green:#18c98a;
+    --red:#f0475f;
+    --accent:#5b7cff;
+    --accent-dim:rgba(91,124,255,.14);
+    --amber:#f2a93b;
+    --orange:#f2703c;
+  }
+  body{
+    background: radial-gradient(circle at top left, #10151d, #05070a 62%);
+    min-height:100vh;
+    color:var(--text-primary);
+    font-family:'Inter',sans-serif;
+    padding: 28px 20px 60px;
+  }
+  #app{max-width:1080px;margin:0 auto;}
+  button{font-family:inherit;}
+
+  .loading-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;color:var(--text-secondary);gap:14px;}
+  .spinner{width:34px;height:34px;border-radius:50%;border:3px solid var(--border);border-top-color:var(--accent);animation:spin .8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .app-header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:18px;padding-bottom:20px;margin-bottom:20px;border-bottom:1px solid var(--border);}
+  .brand{display:flex;align-items:center;gap:12px;}
+  .brand-mark{display:flex;align-items:center;}
+  .brand-text h1{font-family:'Space Grotesk',sans-serif;font-size:19px;margin:0;font-weight:600;letter-spacing:.2px;}
+  .brand-text span{font-size:12px;color:var(--text-tertiary);}
+
+  .month-nav{display:flex;align-items:center;gap:10px;}
+  .nav-btn{width:30px;height:30px;border-radius:8px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);font-size:16px;cursor:pointer;}
+  .nav-btn:hover{border-color:var(--accent);color:var(--accent);}
+  .month-label{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:15px;min-width:150px;text-align:center;text-transform:capitalize;}
+  .today-btn{border:1px solid var(--border);background:transparent;color:var(--text-secondary);border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer;}
+  .today-btn:hover{color:var(--accent);border-color:var(--accent);}
+
+  .stats-row{display:flex;align-items:center;gap:22px;flex-wrap:wrap;}
+  .stat{display:flex;flex-direction:column;gap:2px;}
+  .stat-label{font-size:11px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.06em;}
+  .stat-value{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:600;}
+  .stat-value.pos{color:var(--green);}
+  .stat-value.neg{color:var(--red);}
+  .sparkline-svg{display:block;}
+
+  .calendar-wrap{background:var(--bg-elevated);border:1px solid var(--border);border-radius:16px;padding:16px;overflow-x:auto;}
+  .cal-header{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:16px;flex-wrap:wrap;}
+  .cal-title{font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:600;margin:0;color:var(--text-primary);}
+  .cal-weekdays{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:6px;min-width:520px;}
+  .weekday-label{font-size:10.5px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.08em;text-align:center;padding:4px 0;}
+  .cal-row{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:6px;min-width:520px;}
+  .cal-cell{position:relative;min-height:96px;border-radius:10px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);text-align:left;padding:8px;cursor:pointer;transition:transform .12s ease, border-color .12s ease;}
+  .cal-cell:hover{transform:translateY(-2px);border-color:var(--accent);}
+  .cal-cell.outside{opacity:.3;}
+  .cal-cell.is-today{box-shadow:0 0 0 1.5px var(--accent) inset;}
+  .cal-daynum{font-size:11px;color:var(--text-tertiary);font-weight:600;}
+  .cal-box{position:absolute;inset:5px;border-radius:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:6px;}
+  .cal-box-day{font-size:10px;color:var(--text-secondary);font-weight:600;position:absolute;top:7px;left:9px;}
+  .cal-box-pnl{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:var(--text-primary);}
+  .cal-box-sub{font-size:10.5px;font-weight:700;}
+  .cal-box-sub.pos{color:var(--green);}
+  .cal-box-sub.neg{color:var(--red);}
+
+  .modal-overlay{position:fixed;inset:0;background:rgba(4,6,10,.68);backdrop-filter:blur(2px);display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto;z-index:200;}
+  .modal{background:var(--bg-elevated);border:1px solid var(--border);border-radius:18px;max-width:560px;width:100%;margin:auto;box-shadow:0 20px 60px rgba(0,0,0,.5);}
+  .modal-header{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid var(--border);}
+  .modal-header h2{font-family:'Space Grotesk',sans-serif;font-size:16px;margin:0;text-transform:capitalize;}
+  .icon-btn{width:30px;height:30px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-secondary);cursor:pointer;flex-shrink:0;}
+  .icon-btn:hover{color:var(--red);border-color:var(--red);}
+  .modal-body{padding:20px;display:flex;flex-direction:column;gap:16px;max-height:72vh;overflow-y:auto;}
+
+  .field-row{display:flex;flex-direction:column;gap:6px;}
+  .field-label{font-size:12px;color:var(--text-secondary);font-weight:600;}
+  .input-money,.input-time{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text-primary);font-family:'JetBrains Mono',monospace;font-size:14px;width:100%;}
+  .textarea{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text-primary);font-family:inherit;font-size:13px;resize:vertical;width:100%;}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+
+  .btn-primary{background:var(--accent);color:#fff;border:none;border-radius:10px;padding:10px 16px;font-weight:600;font-size:13px;cursor:pointer;}
+  .btn-primary:hover{filter:brightness(1.08);}
+  .btn-secondary{background:transparent;border:1px solid var(--border);color:var(--text-primary);border-radius:10px;padding:10px 16px;font-size:13px;cursor:pointer;}
+  .btn-secondary:hover{border-color:var(--accent);color:var(--accent);}
+
+  .trades-section{border-top:1px solid var(--border);padding-top:16px;display:flex;flex-direction:column;gap:12px;}
+  .trades-header{display:flex;align-items:center;justify-content:space-between;}
+  .trades-header h3{font-size:13px;margin:0;color:var(--text-secondary);}
+  .empty-hint{font-size:12px;color:var(--text-tertiary);}
+
+  .trade-card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px;}
+  .trade-card-top{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;}
+  .trade-time{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-secondary);}
+  .bias-tag{font-size:11px;font-weight:700;padding:3px 8px;border-radius:20px;}
+  .bias-tag.pos{color:var(--green);background:rgba(24,201,138,.12);}
+  .bias-tag.neg{color:var(--red);background:rgba(240,71,95,.12);}
+  .trade-tags{display:flex;flex-wrap:wrap;gap:6px;}
+  .mini-tag{font-size:10px;background:var(--accent-dim);color:var(--accent);padding:3px 8px;border-radius:20px;}
+  .model-tag{font-size:10px;font-weight:700;background:rgba(242,169,59,.14);color:var(--amber);padding:3px 8px;border-radius:20px;}
+  .trade-emotions{display:flex;gap:10px;flex-wrap:wrap;}
+  .emo-chip{font-size:11px;color:var(--text-secondary);}
+  .trade-notes-preview{font-size:12px;color:var(--text-secondary);margin:0;white-space:pre-wrap;}
+  .trade-card-actions{display:flex;gap:14px;padding-top:4px;border-top:1px dashed var(--border);flex-wrap:wrap;}
+  .link-btn{background:none;border:none;color:var(--accent);font-size:12px;cursor:pointer;padding:0;}
+  .link-btn.danger{color:var(--red);}
+
+  .pill-group{display:flex;gap:8px;flex-wrap:wrap;}
+  .pill{border:1px solid var(--border);background:var(--bg-card);color:var(--text-secondary);border-radius:20px;padding:8px 14px;font-size:12px;cursor:pointer;}
+  .bias-pill.active.pos{background:rgba(24,201,138,.15);border-color:var(--green);color:var(--green);}
+  .bias-pill.active.neg{background:rgba(240,71,95,.15);border-color:var(--red);color:var(--red);}
+  .confirm-pill.active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent);}
+  .model-pill.active{background:rgba(242,169,59,.15);border-color:var(--amber);color:var(--amber);}
+  .emo-pill.active.emo-bien{background:rgba(24,201,138,.15);border-color:var(--green);color:var(--green);}
+  .emo-pill.active.emo-desesperado{background:rgba(242,169,59,.15);border-color:var(--amber);color:var(--amber);}
+  .emo-pill.active.emo-frustrado{background:rgba(242,112,60,.15);border-color:var(--orange);color:var(--orange);}
+  .emo-pill.active.emo-mal{background:rgba(240,71,95,.15);border-color:var(--red);color:var(--red);}
+
+  .file-input-label{display:inline-flex;align-items:center;gap:8px;border:1px dashed var(--border);border-radius:10px;padding:10px 14px;color:var(--text-secondary);font-size:12px;cursor:pointer;width:fit-content;}
+  .file-input-label:hover{border-color:var(--accent);color:var(--accent);}
+  .image-preview-wrap{display:flex;flex-direction:column;gap:8px;align-items:flex-start;}
+  .image-preview{max-width:100%;max-height:220px;border-radius:10px;border:1px solid var(--border);}
+  .image-loading{font-size:12px;color:var(--text-tertiary);}
+
+  .form-actions{display:flex;justify-content:flex-end;gap:10px;padding-top:6px;}
+
+  .lightbox-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;z-index:300;padding:24px;}
+  .lightbox-inner{position:relative;max-width:90vw;max-height:90vh;}
+  .lightbox-img{max-width:90vw;max-height:85vh;border-radius:10px;display:block;}
+  .icon-btn.light{position:absolute;top:-14px;right:-14px;background:#111;color:#fff;}
+
+  .toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:var(--bg-elevated);border:1px solid var(--border);padding:10px 18px;border-radius:30px;font-size:13px;color:var(--text-primary);z-index:400;box-shadow:0 10px 30px rgba(0,0,0,.4);}
+
+  @media (max-width:640px){
+    body{padding:16px 10px 40px;}
+    .form-grid{grid-template-columns:1fr;}
+    .modal-overlay{padding:0;}
+    .modal{border-radius:0;max-width:100%;min-height:100vh;}
+  }
+</style>
+</head>
+<body>
+<div id="app"><div class="loading-screen"><div class="spinner"></div><p>Cargando tu journal…</p></div></div>
+
+<script>
+(function(){
+  "use strict";
+
+  var STORAGE_KEY = "journal-data";
+  var DAYS_ES = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
+  var DAYS_LONG_ES = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
+  var MONTHS_ES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+  var EMOTIONS = [
+    {key:"bien", label:"Bien", emoji:"🙂"},
+    {key:"desesperado", label:"Desesperado", emoji:"😰"},
+    {key:"frustrado", label:"Frustrado", emoji:"😤"},
+    {key:"mal", label:"Mal", emoji:"🙁"}
+  ];
+  var CONFIRMATIONS = [
+    {key:"sweep", label:"Sweep de liquidez"},
+    {key:"ifvg", label:"IFVG"},
+    {key:"htfFvg", label:"Respeto FVG HTF"},
+    {key:"dol", label:"DOL claro"},
+    {key:"smt", label:"SMT"},
+    {key:"cisd", label:"CISD"}
+  ];
+  var ENTRY_MODELS = [
+    {key:"continuacion", label:"Continuación"},
+    {key:"amd", label:"AMD"},
+    {key:"reversal", label:"Reversal"},
+    {key:"judas", label:"Judas Swing"}
+  ];
+
+  var state = {
+    data: {days:{}},
+    viewDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+    loading: true,
+    selectedDay: null,
+    dayModalOpen: false,
+    tradeFormOpen: false,
+    tradeDraft: null,
+    confirmDeleteId: null,
+    loadedImages: {},
+    imageViewerSrc: null,
+    toast: null
+  };
+
+  // ---------- utils ----------
+  function pad(n){ return n < 10 ? "0"+n : ""+n; }
+  function dateKey(d){ return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
+  function parseKey(k){ var parts = k.split("-").map(Number); return new Date(parts[0], parts[1]-1, parts[2]); }
+  function daysInMonth(y,m){ return new Date(y, m+1, 0).getDate(); }
+  function isSameDay(a,b){ return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate(); }
+  function genId(){ return "id_"+Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
+  function escapeHTML(str){
+    return String(str).replace(/[&<>"']/g, function(c){
+      return ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c];
+    });
+  }
+  function fmtMoney(n){
+    n = Number(n) || 0;
+    var sign = n > 0 ? "+" : (n < 0 ? "\u2212" : "");
+    var abs = Math.abs(n);
+    return sign + "$" + abs.toLocaleString("es-ES", {minimumFractionDigits:2, maximumFractionDigits:2});
+  }
+  function ensureDay(key){
+    if(!state.data.days[key]) state.data.days[key] = {pnl:0, lesson:"", trades:[]};
+    if(!state.data.days[key].trades) state.data.days[key].trades = [];
+    return state.data.days[key];
+  }
+  function newTradeDraft(){
+    return {
+      id: genId(), entryTime:"", exitTime:"", bias:null, entryModel:null,
+      confirmations:{sweep:false, ifvg:false, htfFvg:false, dol:false, smt:false, cisd:false},
+      emotionBefore:null, emotionAfter:null, notes:"",
+      imageDataUrl:null, imageTouched:false, imageLoading:false, needsImageFetch:false
+    };
+  }
+
+  function resizeImage(file){
+    return new Promise(function(resolve, reject){
+      var reader = new FileReader();
+      reader.onload = function(e){
+        var img = new Image();
+        img.onload = function(){
+          var maxDim = 1000;
+          var width = img.width, height = img.height;
+          if(width > height && width > maxDim){ height = height * (maxDim/width); width = maxDim; }
+          else if(height > maxDim){ width = width * (maxDim/height); height = maxDim; }
+          var canvas = document.createElement("canvas");
+          canvas.width = Math.round(width); canvas.height = Math.round(height);
+          var ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL("image/jpeg", 0.72));
+        };
+        img.onerror = reject;
+        img.src = e.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // ---------- persistence ----------
+  function loadData(){
+    return window.storage.get(STORAGE_KEY, false).then(function(res){
+      if(res && res.value) return JSON.parse(res.value);
+      return {days:{}};
+    }).catch(function(){ return {days:{}}; });
+  }
+  function persist(){
+    return window.storage.set(STORAGE_KEY, JSON.stringify(state.data), false).catch(function(err){
+      console.error(err);
+      flash("No se pudo guardar. Revisa tu conexión.");
+    });
+  }
+  function getImage(id){
+    return window.storage.get("img_"+id, false).then(function(res){
+      return (res && res.value) ? res.value : null;
+    }).catch(function(){ return null; });
+  }
+  function setImage(id, dataUrl){
+    return window.storage.set("img_"+id, dataUrl, false).catch(function(err){ console.error(err); });
+  }
+  function deleteImage(id){
+    return window.storage.delete("img_"+id, false).catch(function(){});
+  }
+
+  var toastTimer = null;
+  function flash(msg){
+    state.toast = msg;
+    render();
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ state.toast = null; render(); }, 2200);
+  }
+
+  // ---------- stats ----------
+  function computeMonthStats(y, m){
+    var n = daysInMonth(y, m);
+    var total = 0, tradingDays = 0, winDays = 0, cum = 0;
+    var curve = [0];
+    for(var d = 1; d <= n; d++){
+      var key = dateKey(new Date(y, m, d));
+      var day = state.data.days[key];
+      var pnl = day ? (Number(day.pnl) || 0) : 0;
+      if(day && ((day.trades && day.trades.length > 0) || pnl !== 0)) tradingDays++;
+      if(pnl > 0) winDays++;
+      total += pnl; cum += pnl; curve.push(cum);
+    }
+    var winRate = tradingDays > 0 ? Math.round((winDays/tradingDays)*100) : 0;
+    return {total:total, tradingDays:tradingDays, winRate:winRate, curve:curve};
+  }
+  function getMonthMaxAbs(y, m){
+    var n = daysInMonth(y, m), max = 0;
+    for(var d = 1; d <= n; d++){
+      var key = dateKey(new Date(y, m, d));
+      var day = state.data.days[key];
+      if(day && day.pnl) max = Math.max(max, Math.abs(Number(day.pnl)));
+    }
+    return max;
+  }
+  function sparklineSVG(curve){
+    var w = 140, h = 34, padV = 3;
+    var min = Math.min.apply(null, curve), max = Math.max.apply(null, curve);
+    var range = (max - min) || 1;
+    var stepX = (w - 2*padV) / ((curve.length - 1) || 1);
+    var pts = curve.map(function(v, i){
+      var x = padV + i*stepX;
+      var y = h - padV - ((v - min)/range) * (h - 2*padV);
+      return x.toFixed(1) + "," + y.toFixed(1);
+    }).join(" ");
+    var last = curve[curve.length - 1];
+    var color = last >= 0 ? "var(--green)" : "var(--red)";
+    return '<svg viewBox="0 0 '+w+' '+h+'" width="'+w+'" height="'+h+'" class="sparkline-svg">' +
+      '<polyline points="'+pts+'" fill="none" stroke="'+color+'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '</svg>';
+  }
+
+  // ---------- render: header ----------
+  function brandMarkSVG(){
+    return '<svg width="24" height="24" viewBox="0 0 24 24" fill="none">' +
+      '<line x1="5.5" y1="5" x2="5.5" y2="20" stroke="var(--red)" stroke-width="1.3"/>' +
+      '<rect x="4" y="10" width="3" height="7" rx="1" fill="var(--red)"/>' +
+      '<line x1="12" y1="2.5" x2="12" y2="20" stroke="var(--green)" stroke-width="1.3"/>' +
+      '<rect x="10.5" y="6" width="3" height="11" rx="1" fill="var(--green)"/>' +
+      '<line x1="18.5" y1="4.5" x2="18.5" y2="17" stroke="var(--accent)" stroke-width="1.3"/>' +
+      '<rect x="17" y="8.5" width="3" height="6" rx="1" fill="var(--accent)"/>' +
+      '</svg>';
+  }
+  function headerHTML(){
+    var y = state.viewDate.getFullYear(), m = state.viewDate.getMonth();
+    var stats = computeMonthStats(y, m);
+    return '' +
+    '<header class="app-header">' +
+      '<div class="brand">' +
+        '<span class="brand-mark">'+brandMarkSVG()+'</span>' +
+        '<div class="brand-text"><h1>Trading Journal</h1><span>Registro diario de operaciones</span></div>' +
+      '</div>' +
+      '<div class="stats-row">' +
+        '<div class="stat"><span class="stat-label">PnL del mes</span><span class="stat-value '+(stats.total>=0?'pos':'neg')+'">'+fmtMoney(stats.total)+'</span></div>' +
+        '<div class="stat"><span class="stat-label">Días operados</span><span class="stat-value">'+stats.tradingDays+'</span></div>' +
+        '<div class="stat"><span class="stat-label">Win rate</span><span class="stat-value">'+stats.winRate+'%</span></div>' +
+        '<div class="stat"><span class="stat-label">Curva de equity</span>'+sparklineSVG(stats.curve)+'</div>' +
+      '</div>' +
+    '</header>';
+  }
+
+  // ---------- render: calendar ----------
+  function dayCellHTML(date, inMonth, maxAbs){
+    var key = dateKey(date);
+    var day = state.data.days[key];
+    var pnl = day ? (Number(day.pnl) || 0) : 0;
+    var isToday = isSameDay(date, new Date());
+    var hasData = !!day && (pnl !== 0 || (day.trades && day.trades.length > 0));
+    var tradeCount = day && day.trades ? day.trades.length : 0;
+    var inner;
+    if(hasData && pnl !== 0){
+      var alpha = maxAbs > 0 ? Math.min(0.10 + (Math.abs(pnl)/maxAbs)*0.30, 0.42) : 0.16;
+      var rgb = pnl > 0 ? "24,201,138" : "240,71,95";
+      var boxStyle = 'background:rgba('+rgb+','+alpha+');border:1px solid rgba('+rgb+','+Math.min(alpha*1.8+0.1,0.9)+');';
+      var sub = tradeCount > 0 ? tradeCount+' op'+(tradeCount>1?'s':'.') : (pnl>0?'Ganancia':'Pérdida');
+      inner = '<div class="cal-box" style="'+boxStyle+'">' +
+        '<span class="cal-box-day">'+date.getDate()+'</span>' +
+        '<span class="cal-box-pnl">'+fmtMoney(pnl)+'</span>' +
+        '<span class="cal-box-sub '+(pnl>0?'pos':'neg')+'">'+sub+'</span>' +
+      '</div>';
+    } else {
+      inner = '<span class="cal-daynum">'+date.getDate()+'</span>';
+    }
+    return '<button class="cal-cell '+(inMonth?'':'outside')+' '+(isToday?'is-today':'')+'" data-action="open-day" data-date="'+key+'">' + inner + '</button>';
+  }
+  function calendarHTML(){
+    var y = state.viewDate.getFullYear(), m = state.viewDate.getMonth();
+    var first = new Date(y, m, 1);
+    var firstWeekday = first.getDay(); // 0 = Sunday
+    var totalDays = daysInMonth(y, m);
+    var cells = [];
+    for(var i = 0; i < firstWeekday; i++){
+      cells.push({date: new Date(y, m, i - firstWeekday + 1), inMonth:false});
+    }
+    for(var d = 1; d <= totalDays; d++){
+      cells.push({date: new Date(y, m, d), inMonth:true});
+    }
+    while(cells.length % 7 !== 0){
+      var lastDate = cells[cells.length-1].date;
+      var nd = new Date(lastDate.getFullYear(), lastDate.getMonth(), lastDate.getDate()+1);
+      cells.push({date: nd, inMonth:false});
+    }
+    var maxAbs = getMonthMaxAbs(y, m);
+    var rows = "";
+    for(var r = 0; r < cells.length/7; r++){
+      var weekCells = cells.slice(r*7, r*7+7);
+      var cellsHTML = weekCells.map(function(c){
+        return dayCellHTML(c.date, c.inMonth, maxAbs);
+      }).join("");
+      rows += '<div class="cal-row">'+cellsHTML+'</div>';
+    }
+    var monthLabel = MONTHS_ES[m] + " " + y;
+    return '<div class="calendar-wrap">' +
+      '<div class="cal-header">' +
+        '<h2 class="cal-title">Calendario de trading</h2>' +
+        '<div class="month-nav">' +
+          '<button class="nav-btn" data-action="prev-month" aria-label="Mes anterior">‹</button>' +
+          '<div class="month-label">'+monthLabel+'</div>' +
+          '<button class="nav-btn" data-action="next-month" aria-label="Mes siguiente">›</button>' +
+          '<button class="today-btn" data-action="today">Hoy</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="cal-weekdays">' + DAYS_ES.map(function(dd){ return '<div class="weekday-label">'+dd+'</div>'; }).join("") + '</div>' +
+      rows +
+    '</div>';
+  }
+
+  // ---------- render: day modal ----------
+  function tradeCardHTML(t){
+    var biasLabel = "";
+    if(t.bias === "alcista") biasLabel = '<span class="bias-tag pos">▲ Alcista</span>';
+    else if(t.bias === "bajista") biasLabel = '<span class="bias-tag neg">▼ Bajista</span>';
+    var modelInfo = ENTRY_MODELS.filter(function(mo){ return mo.key === t.entryModel; })[0];
+    var confirmsActive = CONFIRMATIONS.filter(function(c){ return t.confirmations && t.confirmations[c.key]; });
+    var emoBefore = EMOTIONS.filter(function(e){ return e.key === t.emotionBefore; })[0];
+    var emoAfter = EMOTIONS.filter(function(e){ return e.key === t.emotionAfter; })[0];
+    var isConfirming = state.confirmDeleteId === t.id;
+    return '<div class="trade-card">' +
+      '<div class="trade-card-top"><span class="trade-time">'+(t.entryTime||'--:--')+' → '+(t.exitTime||'--:--')+'</span>'+biasLabel+'</div>' +
+      (modelInfo ? '<div class="trade-tags"><span class="model-tag">'+modelInfo.label+'</span></div>' : '') +
+      (confirmsActive.length ? '<div class="trade-tags">'+confirmsActive.map(function(c){ return '<span class="mini-tag">'+c.label+'</span>'; }).join("")+'</div>' : '') +
+      ((emoBefore||emoAfter) ? '<div class="trade-emotions">' +
+        (emoBefore ? '<span class="emo-chip">'+emoBefore.emoji+' antes</span>' : '') +
+        (emoAfter ? '<span class="emo-chip">'+emoAfter.emoji+' después</span>' : '') +
+      '</div>' : '') +
+      (t.notes ? '<p class="trade-notes-preview">'+escapeHTML(t.notes)+'</p>' : '') +
+      '<div class="trade-card-actions">' +
+        (t.hasImage ? '<button class="link-btn" data-action="view-image" data-id="'+t.id+'">🖼 Ver imagen</button>' : '') +
+        '<button class="link-btn" data-action="edit-trade" data-id="'+t.id+'">Editar</button>' +
+        '<button class="link-btn danger" data-action="delete-trade" data-id="'+t.id+'">'+(isConfirming?'¿Confirmar?':'Eliminar')+'</button>' +
+      '</div>' +
+    '</div>';
+  }
+  function dayBodyHTML(day){
+    return '<div class="modal-body">' +
+      '<div class="field-row"><label class="field-label">PnL del día</label>' +
+        '<input id="day-pnl" type="number" step="0.01" class="input-money" value="'+(day.pnl||0)+'" placeholder="0.00" /></div>' +
+      '<div class="field-row"><label class="field-label">Lección del día</label>' +
+        '<textarea id="day-lesson" class="textarea" rows="3" placeholder="¿Qué aprendiste hoy?">'+escapeHTML(day.lesson||'')+'</textarea></div>' +
+      '<button class="btn-primary" data-action="save-day" style="align-self:flex-start;">Guardar día</button>' +
+      '<div class="trades-section">' +
+        '<div class="trades-header"><h3>Entradas ('+day.trades.length+')</h3><button class="btn-secondary" data-action="add-trade">+ Agregar entrada</button></div>' +
+        (day.trades.length === 0 ? '<p class="empty-hint">Todavía no agregaste ninguna entrada para este día.</p>' : day.trades.map(tradeCardHTML).join("")) +
+      '</div>' +
+    '</div>';
+  }
+  function tradeFormHTML(){
+    var d = state.tradeDraft;
+    var imageBlock;
+    if(d.imageLoading || d.needsImageFetch){
+      imageBlock = '<div class="image-loading">'+(d.imageLoading ? 'Procesando imagen…' : 'Cargando imagen…')+'</div>';
+    } else if(d.imageDataUrl){
+      imageBlock = '<div class="image-preview-wrap"><img src="'+d.imageDataUrl+'" class="image-preview"/>' +
+        '<button type="button" class="link-btn danger" data-action="remove-image">Quitar imagen</button></div>';
+    } else {
+      imageBlock = '<label class="file-input-label">📷 Subir captura<input id="trade-image-input" type="file" accept="image/*" hidden /></label>';
+    }
+    return '<div class="modal-body">' +
+      '<div class="form-grid">' +
+        '<div class="field-row"><label class="field-label">Hora de entrada</label><input id="trade-entry-time" type="time" class="input-time" value="'+(d.entryTime||'')+'" /></div>' +
+        '<div class="field-row"><label class="field-label">Hora de salida</label><input id="trade-exit-time" type="time" class="input-time" value="'+(d.exitTime||'')+'" /></div>' +
+      '</div>' +
+      '<div class="field-row"><label class="field-label">Daily bias</label><div class="pill-group">' +
+        '<button type="button" class="pill bias-pill '+(d.bias==='alcista'?'active pos':'')+'" data-action="toggle-bias" data-value="alcista">▲ Alcista</button>' +
+        '<button type="button" class="pill bias-pill '+(d.bias==='bajista'?'active neg':'')+'" data-action="toggle-bias" data-value="bajista">▼ Bajista</button>' +
+      '</div></div>' +
+      '<div class="field-row"><label class="field-label">Modelo de entrada</label><div class="pill-group">' +
+        ENTRY_MODELS.map(function(mo){
+          return '<button type="button" class="pill model-pill '+(d.entryModel===mo.key?'active':'')+'" data-action="select-entry-model" data-value="'+mo.key+'">'+mo.label+'</button>';
+        }).join("") +
+      '</div></div>' +
+      '<div class="field-row"><label class="field-label">Confirmaciones</label><div class="pill-group">' +
+        CONFIRMATIONS.map(function(c){
+          return '<button type="button" class="pill confirm-pill '+(d.confirmations[c.key]?'active':'')+'" data-action="toggle-confirm" data-key="'+c.key+'">'+c.label+'</button>';
+        }).join("") +
+      '</div></div>' +
+      '<div class="field-row"><label class="field-label">Emoción antes del trade</label><div class="pill-group">' +
+        EMOTIONS.map(function(e){
+          return '<button type="button" class="pill emo-pill emo-'+e.key+' '+(d.emotionBefore===e.key?'active':'')+'" data-action="select-emotion" data-group="before" data-value="'+e.key+'">'+e.emoji+' '+e.label+'</button>';
+        }).join("") +
+      '</div></div>' +
+      '<div class="field-row"><label class="field-label">Emoción después del trade</label><div class="pill-group">' +
+        EMOTIONS.map(function(e){
+          return '<button type="button" class="pill emo-pill emo-'+e.key+' '+(d.emotionAfter===e.key?'active':'')+'" data-action="select-emotion" data-group="after" data-value="'+e.key+'">'+e.emoji+' '+e.label+'</button>';
+        }).join("") +
+      '</div></div>' +
+      '<div class="field-row"><label class="field-label">Foto de la entrada</label>'+imageBlock+'</div>' +
+      '<div class="field-row"><label class="field-label">Notas (opcional)</label><textarea id="trade-notes" class="textarea" rows="2" placeholder="Detalles adicionales...">'+escapeHTML(d.notes||'')+'</textarea></div>' +
+      '<div class="form-actions"><button class="btn-secondary" data-action="cancel-trade-form">Cancelar</button><button class="btn-primary" data-action="save-trade">Guardar entrada</button></div>' +
+    '</div>';
+  }
+  function dayModalHTML(){
+    var key = state.selectedDay;
+    var date = parseKey(key);
+    var day = ensureDay(key);
+    var label = DAYS_LONG_ES[date.getDay()] + ", " + date.getDate() + " de " + MONTHS_ES[date.getMonth()].toLowerCase() + " " + date.getFullYear();
+    return '<div class="modal-overlay" data-action="close-day-modal">' +
+      '<div class="modal" data-action="stop">' +
+        '<div class="modal-header"><h2>'+label+'</h2><button class="icon-btn" data-action="close-day-modal">✕</button></div>' +
+        (state.tradeFormOpen ? tradeFormHTML() : dayBodyHTML(day)) +
+      '</div>' +
+    '</div>';
+  }
+  function imageViewerHTML(){
+    return '<div class="lightbox-overlay" data-action="close-image-viewer">' +
+      '<div class="lightbox-inner" data-action="stop">' +
+        '<button class="icon-btn light" data-action="close-image-viewer">✕</button>' +
+        (state.imageViewerSrc ? '<img src="'+state.imageViewerSrc+'" class="lightbox-img"/>' : '<div class="image-loading">Cargando imagen…</div>') +
+      '</div>' +
+    '</div>';
+  }
+
+  // ---------- render root ----------
+  function render(){
+    var appEl = document.getElementById("app");
+    if(state.loading){
+      appEl.innerHTML = '<div class="loading-screen"><div class="spinner"></div><p>Cargando tu journal…</p></div>';
+      return;
+    }
+    var html = headerHTML() + calendarHTML();
+    if(state.dayModalOpen) html += dayModalHTML();
+    if(state.imageViewerSrc !== null || state.imageViewerLoading) html += imageViewerHTML();
+    if(state.toast) html += '<div class="toast">'+escapeHTML(state.toast)+'</div>';
+    appEl.innerHTML = html;
+  }
+
+  // ---------- actions ----------
+  function onClick(e){
+    var actionEl = e.target.closest ? e.target.closest("[data-action]") : null;
+    if(!actionEl) return;
+    var action = actionEl.dataset.action;
+
+    switch(action){
+      case "stop": break;
+
+      case "prev-month":
+        state.viewDate = new Date(state.viewDate.getFullYear(), state.viewDate.getMonth()-1, 1);
+        render();
+        break;
+      case "next-month":
+        state.viewDate = new Date(state.viewDate.getFullYear(), state.viewDate.getMonth()+1, 1);
+        render();
+        break;
+      case "today":
+        state.viewDate = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+        render();
+        break;
+
+      case "open-day":
+        state.selectedDay = actionEl.dataset.date;
+        state.dayModalOpen = true;
+        state.tradeFormOpen = false;
+        state.confirmDeleteId = null;
+        render();
+        break;
+      case "close-day-modal":
+        state.dayModalOpen = false;
+        state.selectedDay = null;
+        state.tradeFormOpen = false;
+        state.tradeDraft = null;
+        render();
+        break;
+
+      case "save-day": {
+        var pnlEl = document.getElementById("day-pnl");
+        var lessonEl = document.getElementById("day-lesson");
+        var pnlVal = parseFloat(pnlEl.value);
+        var day = ensureDay(state.selectedDay);
+        day.pnl = isNaN(pnlVal) ? 0 : pnlVal;
+        day.lesson = lessonEl.value;
+        persist().then(function(){ flash("Día guardado"); });
+        break;
+      }
+
+      case "add-trade":
+        state.tradeDraft = newTradeDraft();
+        state.tradeFormOpen = true;
+        render();
+        break;
+
+      case "edit-trade": {
+        var editId = actionEl.dataset.id;
+        var dayObj = state.data.days[state.selectedDay];
+        var t = dayObj && dayObj.trades.filter(function(x){ return x.id === editId; })[0];
+        if(t){
+          var cached = state.loadedImages[t.id];
+          state.tradeDraft = {
+            id:t.id, entryTime:t.entryTime, exitTime:t.exitTime, bias:t.bias, entryModel:t.entryModel||null,
+            confirmations:Object.assign({}, t.confirmations),
+            emotionBefore:t.emotionBefore, emotionAfter:t.emotionAfter, notes:t.notes,
+            imageDataUrl: cached || null, imageTouched:false, imageLoading:false,
+            needsImageFetch: !!t.hasImage && !cached
+          };
+          state.tradeFormOpen = true;
+          render();
+          if(state.tradeDraft.needsImageFetch){
+            getImage(editId).then(function(dataUrl){
+              if(dataUrl) state.loadedImages[editId] = dataUrl;
+              if(state.tradeDraft && state.tradeDraft.id === editId){
+                state.tradeDraft.imageDataUrl = dataUrl;
+                state.tradeDraft.needsImageFetch = false;
+                render();
+              }
+            });
+          }
+        }
+        break;
+      }
+
+      case "cancel-trade-form":
+        state.tradeFormOpen = false;
+        state.tradeDraft = null;
+        render();
+        break;
+
+      case "toggle-bias":
+        state.tradeDraft.bias = actionEl.dataset.value;
+        render();
+        break;
+      case "select-entry-model":
+        state.tradeDraft.entryModel = actionEl.dataset.value;
+        render();
+        break;
+      case "toggle-confirm": {
+        var ck = actionEl.dataset.key;
+        state.tradeDraft.confirmations[ck] = !state.tradeDraft.confirmations[ck];
+        render();
+        break;
+      }
+      case "select-emotion": {
+        var grp = actionEl.dataset.group, val = actionEl.dataset.value;
+        if(grp === "before") state.tradeDraft.emotionBefore = val; else state.tradeDraft.emotionAfter = val;
+        render();
+        break;
+      }
+      case "remove-image":
+        state.tradeDraft.imageDataUrl = null;
+        state.tradeDraft.imageTouched = true;
+        render();
+        break;
+
+      case "save-trade": saveTrade(); break;
+
+      case "delete-trade": {
+        var delId = actionEl.dataset.id;
+        if(state.confirmDeleteId !== delId){
+          state.confirmDeleteId = delId;
+          render();
+        } else {
+          var dObj = state.data.days[state.selectedDay];
+          if(dObj){
+            var idx = dObj.trades.findIndex(function(x){ return x.id === delId; });
+            if(idx >= 0){
+              var trade = dObj.trades[idx];
+              var cleanup = trade.hasImage ? deleteImage(delId) : Promise.resolve();
+              delete state.loadedImages[delId];
+              dObj.trades.splice(idx, 1);
+              state.confirmDeleteId = null;
+              cleanup.then(persist).then(function(){ flash("Entrada eliminada"); });
+            }
+          }
+        }
+        break;
+      }
+
+      case "view-image": {
+        var vid = actionEl.dataset.id;
+        state.imageViewerLoading = true;
+        state.imageViewerSrc = state.loadedImages[vid] || null;
+        render();
+        if(!state.loadedImages[vid]){
+          getImage(vid).then(function(dataUrl){
+            if(dataUrl) state.loadedImages[vid] = dataUrl;
+            state.imageViewerSrc = dataUrl;
+            state.imageViewerLoading = false;
+            render();
+          });
+        } else {
+          state.imageViewerLoading = false;
+        }
+        break;
+      }
+      case "close-image-viewer":
+        state.imageViewerSrc = null;
+        state.imageViewerLoading = false;
+        render();
+        break;
+
+      default: break;
+    }
+  }
+
+  function saveTrade(){
+    var draft = state.tradeDraft;
+    if(!draft) return;
+    var day = ensureDay(state.selectedDay);
+    var existingIndex = day.trades.findIndex(function(t){ return t.id === draft.id; });
+    var hasImage = existingIndex >= 0 ? !!day.trades[existingIndex].hasImage : false;
+
+    var imgOp = Promise.resolve();
+    if(draft.imageTouched){
+      if(draft.imageDataUrl){
+        imgOp = setImage(draft.id, draft.imageDataUrl).then(function(){
+          hasImage = true;
+          state.loadedImages[draft.id] = draft.imageDataUrl;
+        });
+      } else {
+        imgOp = deleteImage(draft.id).then(function(){
+          hasImage = false;
+          delete state.loadedImages[draft.id];
+        });
+      }
+    }
+
+    imgOp.then(function(){
+      var tradeObj = {
+        id: draft.id,
+        entryTime: draft.entryTime || "",
+        exitTime: draft.exitTime || "",
+        bias: draft.bias || null,
+        entryModel: draft.entryModel || null,
+        confirmations: Object.assign({}, draft.confirmations),
+        emotionBefore: draft.emotionBefore || null,
+        emotionAfter: draft.emotionAfter || null,
+        notes: draft.notes || "",
+        hasImage: hasImage
+      };
+      if(existingIndex >= 0) day.trades[existingIndex] = tradeObj; else day.trades.push(tradeObj);
+      return persist();
+    }).then(function(){
+      state.tradeFormOpen = false;
+      state.tradeDraft = null;
+      flash("Entrada guardada");
+    });
+  }
+
+  function onInput(e){
+    if(!state.tradeDraft) return;
+    if(e.target.id === "trade-entry-time") state.tradeDraft.entryTime = e.target.value;
+    else if(e.target.id === "trade-exit-time") state.tradeDraft.exitTime = e.target.value;
+    else if(e.target.id === "trade-notes") state.tradeDraft.notes = e.target.value;
+  }
+
+  function onChange(e){
+    if(e.target.id === "trade-image-input"){
+      var file = e.target.files && e.target.files[0];
+      if(!file) return;
+      if(file.type.indexOf("image/") !== 0){ flash("Selecciona un archivo de imagen válido"); return; }
+      if(!state.tradeDraft) return;
+      state.tradeDraft.imageLoading = true;
+      render();
+      resizeImage(file).then(function(dataUrl){
+        if(state.tradeDraft){
+          state.tradeDraft.imageDataUrl = dataUrl;
+          state.tradeDraft.imageTouched = true;
+          state.tradeDraft.imageLoading = false;
+        }
+        render();
+      }).catch(function(err){
+        console.error(err);
+        if(state.tradeDraft) state.tradeDraft.imageLoading = false;
+        flash("No se pudo procesar la imagen");
+      });
+    }
+  }
+
+  document.addEventListener("keydown", function(e){
+    if(e.key === "Escape"){
+      if(state.imageViewerSrc !== null || state.imageViewerLoading){
+        state.imageViewerSrc = null; state.imageViewerLoading = false; render();
+      } else if(state.tradeFormOpen){
+        state.tradeFormOpen = false; state.tradeDraft = null; render();
+      } else if(state.dayModalOpen){
+        state.dayModalOpen = false; state.selectedDay = null; render();
+      }
+    }
+  });
+
+  function boot(){
+    var appEl = document.getElementById("app");
+    appEl.addEventListener("click", onClick);
+    appEl.addEventListener("input", onInput);
+    appEl.addEventListener("change", onChange);
+    loadData().then(function(data){
+      state.data = data && data.days ? data : {days:{}};
+      state.loading = false;
+      render();
+    });
+  }
+  boot();
+})();
+</script>
+</body>
+</html>
